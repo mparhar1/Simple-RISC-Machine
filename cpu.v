@@ -25,7 +25,7 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
 
     // Other Variables
     reg reset_pc, load_pc, addr_sel, load_ir;
-    reg [8:0] next_pc, pc_out, 
+    reg [8:0] next_pc, pc_out;
 
     // nsel  
     reg [2:0] nsel;
