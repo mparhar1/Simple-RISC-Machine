@@ -1,11 +1,18 @@
-module cpu(clk, reset, s, load, in, out, N, V, Z, w);
-    input clk, reset, s, load;
+module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
+    input clk, reset;
     input [15:0] in;
     output [15:0] out;
-    output reg N, V, Z, w;
+    output reg N, V, Z;
+    output reg [8:0] mem_addr;
+    output reg [2:0] mem_cmd;
 
     // States
-    parameter Swait = 4'b0000, Sdecode = 4'b0001, SgetA = 4'b0010, SgetB = 4'b0011, Swrite = 4'b0100, Srewrite = 4'b0101, Salu = 4'b0110, Sshift = 4'b0111, Sloadout = 4'b1000;
+    parameter Srst = 4'b0000, Sdecode = 4'b0001, SgetA = 4'b0010, SgetB = 4'b0011, Swrite = 4'b0100, Srewrite = 4'b0101, Salu = 4'b0110, Sshift = 4'b0111, Sloadout = 4'b1000, Sif1 = 4'b1001, Sif2 = 4'b1010, SupdatePC = 4'b1011;
+
+    // mem_cmd
+    define `MNONE = 3'b001;
+    define `MREAD = 3'b010;
+    define `MWRITE = 3'b100;
 
     // Decoder Input
     wire [15:0] decoder_in;
@@ -16,6 +23,10 @@ module cpu(clk, reset, s, load, in, out, N, V, Z, w);
     reg [2:0] opcode, readnum, writenum;
     reg [3:0] state;
 
+    // Other Variables
+    reg reset_pc, load_pc, addr_sel, load_ir;
+    reg [8:0] next_pc, pc_out, 
+
     // nsel  
     reg [2:0] nsel;
 
@@ -25,7 +36,7 @@ module cpu(clk, reset, s, load, in, out, N, V, Z, w);
     wire [2:0] Z_out;
 
     // Instruction Register
-    vDFFE #(16) Instruct_Reg(clk, load, in, decoder_in);
+    vDFFE #(16) Instruct_Reg(clk, load_ir, read_data, decoder_in);
 
     // Instruction Decoder
     always@(*) begin
@@ -57,18 +68,18 @@ module cpu(clk, reset, s, load, in, out, N, V, Z, w);
 
     // State Machine (Mealy)
     always @(posedge clk) begin
-        if(reset == 1'b1) {w, state} = {1'b1, Swait};
+        if(reset == 1'b1) state = Srst;
         else begin
             case(state)
                 Sdecode: begin
-                    if(opcode == 3'b110 && op == 2'b10) {w, state} = {1'b0, Swrite};
-                    else {w, state} = {1'b0, SgetA};
+                    if(opcode == 3'b110 && op == 2'b10) state = Swrite;
+                    else state = SgetA;
                 end
-                Swrite: state = Swait;
-                Swait: begin 
-                    state = (s == 1'b1) ? Sdecode : Swait;
-                    w = 1'b1;
-                end
+                Swrite: state = Sif1;
+                Srst: state = Sif1;
+                Sif1: state = Sif2;
+                Sif2: state = SupdatePC;
+                SupdatePC: state = Sdecode;
                 SgetA: state = SgetB;
                 SgetB: begin
                     if(opcode == 3'b110 && op == 2'b0) state = Sshift;
@@ -77,8 +88,8 @@ module cpu(clk, reset, s, load, in, out, N, V, Z, w);
                 Salu: state = Sloadout;
                 Sshift: state = Sloadout;
                 Sloadout: state = Srewrite;
-                Srewrite: state = Swait;
-                default: {state, w} = {Swait, 1'b1};
+                Srewrite: state = Sif1;
+                default: state = Srst;
             endcase
         end
 
@@ -91,11 +102,30 @@ module cpu(clk, reset, s, load, in, out, N, V, Z, w);
             Sloadout: {loadc, loads} = {1'b1, 1'b1};
             Srewrite: {vsel, nsel, write} = {2'b0, 3'b010, 1'b1};
             Swrite: {vsel, nsel, write} = {2'b10, 3'b100, 1'b1};
+            Srst: {reset_pc, load_pc, mem_cmd, addr_sel, load_ir} = {1'b1, 1'b1, `MNONE, 1'b0, 1'b0};
+            Sif1: {reset_pc, load_pc, mem_cmd, addr_sel, load_ir} = {1'b0, 1'b0, `MREAD, 1'b1, 1'b0};
+            Sif2: {reset_pc, load_pc, mem_cmd, addr_sel, load_ir} = {1'b0, 1'b0, `MREAD, 1'b1, 1'b1};
+            SupdatePC: {reset_pc, load_pc, mem_cmd, addr_sel, load_ir} = {1'b0, 1'b1, `MNONE, 1'b0, 1'b0};
             default: begin 
                 {nsel, vsel} = {3'b0, 2'b0};
                 {loada, loadb, loadc, loads, asel, bsel, write} = 1'b0;
+                {reset_pc, load_pc, addr_sel, load_ir} = 4'b0;
+                mem_cmd = `MNONE;
             end
         endcase
+    end
+
+    //program counter MUX
+    always @(*) begin
+        next_pc = (reset_pc) ? 9'b0 : pc_out + 1;
+    end
+
+    //program counter load register
+    vDFFE #(9) Program_Counter(clk, load_pc, next_pc, pc_out);
+
+    //addr_sel MUX
+    always@(*)begin
+        mem_addr = (addr_sel) ? pc_out : 9'b0;
     end
 
     // Datapath Instantiation
