@@ -4,7 +4,9 @@ module lab7_top(KEY, SW, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5);
     output [9:0] LEDR;
     output [6:0] HEX0, HEX1, HEX2, HEX3, HEX4, HEX5;
 
-
+    // Instantiate RAM Module
+    RAM MEM();
+    
 
 endmodule
 
