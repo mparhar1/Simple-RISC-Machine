@@ -3,10 +3,11 @@
 `define MREAD 3'b010
 `define MWRITE 3'b100
 
-module cpu(clk, reset, in, out, mem_addr, mem_cmd);
+module cpu(clk, reset, in, out, mem_addr, mem_cmd, N, V, Z);
     input clk, reset;
     input [15:0] in;
     output [15:0] out;
+    output reg N, V, Z;
     output reg [8:0] mem_addr;
     output reg [2:0] mem_cmd;
 
@@ -136,7 +137,7 @@ module cpu(clk, reset, in, out, mem_addr, mem_cmd);
             default: begin 
                 {nsel, vsel} = {3'b0, 2'b0};
                 {loada, loadb, loadc, loads, asel, bsel, write} = 1'b0;
-                {reset_pc, load_pc, addr_sel, load_ir, load_addr} = {1'b0, 1'b0, 1'b1, 1'b0, 1'b0};
+                {reset_pc, load_pc, addr_sel, load_ir, load_addr} = {1'b0, 1'b0, 1'b0, 1'b0, 1'b0};
                 mem_cmd = `MNONE;
             end
         endcase
@@ -180,4 +181,10 @@ module cpu(clk, reset, in, out, mem_addr, mem_cmd);
         .Z_out(Z_out),
         .datapath_out(out)
     );
+
+    always @(*) begin
+        V = Z_out[2];
+        N = Z_out[1];
+        Z = Z_out[0];
+    end
 endmodule

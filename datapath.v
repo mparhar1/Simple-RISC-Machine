@@ -64,7 +64,7 @@ module datapath(clk,readnum,vsel,loada,loadb,shift,asel,bsel,ALUop,loadc,loads,w
   end
 
   always@(*) begin
-    status_in[2] = (Ain[15]^Bin[15]) ? 0 : (out[15]^Ain[15]);
+    status_in[2] = (ALUop == 2'b01) ? (out[15] !== out[7]) : 0;
     status_in[1] = out[15];
     status_in[0] = Z;
   end
