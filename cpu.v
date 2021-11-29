@@ -7,7 +7,7 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
     output reg [2:0] mem_cmd;
 
     // States
-    parameter Srst = 4'b0000, Sdecode = 4'b0001, SgetA = 4'b0010, SgetB = 4'b0011, Swrite = 4'b0100, Srewrite = 4'b0101, Salu = 4'b0110, Sshift = 4'b0111, Sloadout = 4'b1000, Sif1 = 4'b1001, Sif2 = 4'b1010, SupdatePC = 4'b1011;
+    parameter Srst = 4'b0000, Sdecode = 4'b0001, SgetA = 4'b0010, SgetB = 4'b0011, Swrite = 4'b0100, Srewrite = 4'b0101, Salu = 4'b0110, Sshift = 4'b0111, Sloadout = 4'b1000, Sif1 = 4'b1001, Sif2 = 4'b1010, SupdatePC = 4'b1011, Shalt = 4'b1100;
 
     // mem_cmd
     define `MNONE = 3'b001;
@@ -73,6 +73,7 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
             case(state)
                 Sdecode: begin
                     if(opcode == 3'b110 && op == 2'b10) state = Swrite;
+                    else if(opcode == 3'b111) state = Shalt;
                     else state = SgetA;
                 end
                 Swrite: state = Sif1;
@@ -99,6 +100,7 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
             SgetB: {nsel, loadb, loada} = {3'b001, 1'b1, 1'b0};
             Salu: {asel, bsel} = {1'b0, 1'b0};
             Sshift: {asel, bsel} = {1'b1, 1'b0};
+            Sldr: {asel, bsel} = {1'b0, 1'b1};
             Sloadout: {loadc, loads} = {1'b1, 1'b1};
             Srewrite: {vsel, nsel, write} = {2'b0, 3'b010, 1'b1};
             Swrite: {vsel, nsel, write} = {2'b10, 3'b100, 1'b1};
@@ -125,8 +127,11 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
 
     //addr_sel MUX
     always@(*)begin
-        mem_addr = (addr_sel) ? pc_out : 9'b0;
+        mem_addr = (addr_sel) ? pc_out : data_addr_out;
     end
+
+    // data_address load register
+    vDFFE #(9) Data_Address(clk, load_addr, out[8:0], data_addr_out)
 
     // Datapath Instantiation
     datapath DP(
@@ -143,7 +148,7 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
         .loads(loads),
         .writenum(writenum),
         .write(write),
-        .mdata(16'b0),
+        .mdata(in),
         .PC(8'b0),
         .sximm5(sximm5),
         .sximm8(sximm8),

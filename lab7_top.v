@@ -11,40 +11,43 @@ module lab7_top(KEY, SW, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5);
 
     // Instantiate RAM Module
     RAM MEM(
-        .clk(clk),
+        .clk(~KEY[0]),
         .read_address(mem_addr[7:0]),
         .write_address(mem_addr[7:0]),
-        .write(1'b0),
-        .din(),
+        .write(write_out && msel),
+        .din(write_data),
         .dout(dout)
     );
 
-    // `MREAD and msel comparison
+    // `MREAD, `MWRITE and msel comparison
     always @(*) begin
-        if(mem_cmd == `MREAD) cmd_out = 1'b1;
-        else cmd_out = 1'b0;
+        if(mem_cmd == `MREAD) read_out = 1'b1;
+        else read_out = 1'b0;
+
+        if(mem_cmd == `MWRITE) write_out = 1'b1;
+        else write_out = 1'b0;
 
         if(mem_addr[8] == 1'b0) msel = 1'b1;
         else msel = 1'b0;
     end
 
-    // Tri-state driver
+    // Tri-state drivers
     always @(*) begin
-        read_data = (cmd_out && msel) ? dout : {16{1'bz}};
+        read_data = (read_out && msel) ? dout : {16{1'bz}};
     end
     
     // Instantiate CPU Module
     cpu U(
-        .clk(),
-        .reset(),
-        .in(),
-        .out(),
-        .N(),
-        .V(),
-        .Z(),
-        .mem_addr(),
-        .mem_cmd()
-    )
+        .clk(~KEY[0]),
+        .reset(~KEY[1]),
+        .in(read_data),
+        .out(write_data),
+        .N(N),
+        .V(V),
+        .Z(Z),
+        .mem_addr(mem_addr),
+        .mem_cmd(mem_cmd)
+    );
 
 endmodule
 
