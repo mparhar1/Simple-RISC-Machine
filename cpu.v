@@ -1,13 +1,12 @@
-module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
+module cpu(clk, reset, in, out, mem_addr, mem_cmd);
     input clk, reset;
     input [15:0] in;
     output [15:0] out;
-    output reg N, V, Z;
     output reg [8:0] mem_addr;
     output reg [2:0] mem_cmd;
 
     // States
-    parameter Srst = 4'b0000, Sdecode = 4'b0001, SgetA = 4'b0010, SgetB = 4'b0011, Swrite = 4'b0100, Srewrite = 4'b0101, Salu = 4'b0110, Sshift = 4'b0111, Sloadout = 4'b1000, Sif1 = 4'b1001, Sif2 = 4'b1010, SupdatePC = 4'b1011, Shalt = 4'b1100;
+    parameter Srst = 4'b0000, Sdecode = 4'b0001, SgetA = 4'b0010, SgetB = 4'b0011, Swrite = 4'b0100, Srewrite = 4'b0101, Salu = 4'b0110, Sshift = 4'b0111, Sloadout = 4'b1000, Sif1 = 4'b1001, Sif2 = 4'b1010, SupdatePC = 4'b1011, Shalt = 4'b1100, Sldr = 4'b1101, Sstr = 4'b1110, Sldr_mem = 4'b1111, Sstr_addr = 5'10000, Sstr_rd = 5'b10001, Sstr_rd_alu = 5'b10010, Sstr_loadout = 5'b10011, Sstr_write = 5'b10100, Srewrite_mem = 5'b10101;
 
     // mem_cmd
     define `MNONE = 3'b001;
@@ -21,11 +20,11 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
     reg [1:0] op, shift;
     reg [15:0] sximm5, sximm8;
     reg [2:0] opcode, readnum, writenum;
-    reg [3:0] state;
+    reg [4:0] state;
 
     // Other Variables
     reg reset_pc, load_pc, addr_sel, load_ir;
-    reg [8:0] next_pc, pc_out;
+    reg [8:0] next_pc, PC;
 
     // nsel  
     reg [2:0] nsel;
@@ -85,10 +84,25 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
                 SgetB: begin
                     if(opcode == 3'b110 && op == 2'b0) state = Sshift;
                     else if(opcode == 3'b101) state = Salu;
+                    else if(opcode == 3'b011) state = Sldr;
+                    else if(opcode == 3'b100) state = Sstr;
                 end
                 Salu: state = Sloadout;
                 Sshift: state = Sloadout;
-                Sloadout: state = Srewrite;
+                Sldr: state = Sloadout;
+                Sstr: state = Sloadout;
+                Sldr_mem: state = Srewrite_mem;
+                Sstr_addr: state = Sstr_rd;
+                Sstr_rd: state = Sstr_rd_alu;
+                Sstr_rd_alu: state = Sstr_loadout;
+                Sstr_loadout: state = Sstr_write;
+                Sstr_write: state = Sif1; 
+                Srewrite_mem: state = Sif1;
+                Sloadout: begin
+                    if(opcode == 3'b011) state = Sldr_mem;
+                    else if(opcode == 3'b100) state = Sstr_addr;
+                    else state = Srewrite;
+                end
                 Srewrite: state = Sif1;
                 default: state = Srst;
             endcase
@@ -101,8 +115,16 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
             Salu: {asel, bsel} = {1'b0, 1'b0};
             Sshift: {asel, bsel} = {1'b1, 1'b0};
             Sldr: {asel, bsel} = {1'b0, 1'b1};
+            Sstr: {asel, bsel} = {1'b0, 1'b1};
+            Sldr_mem: {addr_sel, mem_cmd, load_addr} = {1'b0, `MREAD, 1'b1};
+            Sstr_addr: {addr_sel, mem_cmd, load_addr} = {1'b0, `MNONE, 1'b1};
+            Sstr_rd: {nsel, loadb, loada} = {3'b010, 1'b1, 1'b0};
+            Sstr_rd_alu: {asel, bsel, load_addr} = {1'b1, 1'b0, 1'b0};
+            Sstr_loadout: {loadc, loads} = {1'b1, 1'b1};
+            Sstr_write: mem_cmd = `MWRITE;
             Sloadout: {loadc, loads} = {1'b1, 1'b1};
             Srewrite: {vsel, nsel, write} = {2'b0, 3'b010, 1'b1};
+            Srewrite_mem: {vsel, nsel, write} = {2'b11, 3'b010, 1'b1};
             Swrite: {vsel, nsel, write} = {2'b10, 3'b100, 1'b1};
             Srst: {reset_pc, load_pc, mem_cmd, addr_sel, load_ir} = {1'b1, 1'b1, `MNONE, 1'b0, 1'b0};
             Sif1: {reset_pc, load_pc, mem_cmd, addr_sel, load_ir} = {1'b0, 1'b0, `MREAD, 1'b1, 1'b0};
@@ -111,7 +133,7 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
             default: begin 
                 {nsel, vsel} = {3'b0, 2'b0};
                 {loada, loadb, loadc, loads, asel, bsel, write} = 1'b0;
-                {reset_pc, load_pc, addr_sel, load_ir} = 4'b0;
+                {reset_pc, load_pc, addr_sel, load_ir} = {1'b0, 1'b0, 1'b1, 1'b0};
                 mem_cmd = `MNONE;
             end
         endcase
@@ -119,15 +141,15 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
 
     //program counter MUX
     always @(*) begin
-        next_pc = (reset_pc) ? 9'b0 : pc_out + 1;
+        next_pc = (reset_pc) ? 9'b0 : PC + 1;
     end
 
     //program counter load register
-    vDFFE #(9) Program_Counter(clk, load_pc, next_pc, pc_out);
+    vDFFE #(9) Program_Counter(clk, load_pc, next_pc, PC);
 
     //addr_sel MUX
     always@(*)begin
-        mem_addr = (addr_sel) ? pc_out : data_addr_out;
+        mem_addr = (addr_sel) ? PC : data_addr_out;
     end
 
     // data_address load register
@@ -155,12 +177,4 @@ module cpu(clk, reset, in, out, N, V, Z, mem_addr, mem_cmd);
         .Z_out(Z_out),
         .datapath_out(out)
     );
-
-    // Assigning V, N, Z from Z_out
-    always @(*) begin
-        V = Z_out[2];
-        N = Z_out[1];
-        Z = Z_out[0];
-    end
-
 endmodule
