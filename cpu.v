@@ -136,7 +136,7 @@ module cpu(clk, reset, in, out, mem_addr, mem_cmd);
             default: begin 
                 {nsel, vsel} = {3'b0, 2'b0};
                 {loada, loadb, loadc, loads, asel, bsel, write} = 1'b0;
-                {reset_pc, load_pc, addr_sel, load_ir} = {1'b0, 1'b0, 1'b1, 1'b0};
+                {reset_pc, load_pc, addr_sel, load_ir, load_addr} = {1'b0, 1'b0, 1'b1, 1'b0, 1'b0};
                 mem_cmd = `MNONE;
             end
         endcase
