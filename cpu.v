@@ -24,7 +24,8 @@ module cpu(clk, reset, in, out, mem_addr, mem_cmd);
 
     // Other Variables
     reg reset_pc, load_pc, addr_sel, load_ir, load_addr;
-    reg [8:0] next_pc, PC;
+    reg [8:0] next_pc;
+    wire [8:0] PC;
     wire [8:0] data_addr_out;
 
     // nsel  
@@ -36,7 +37,7 @@ module cpu(clk, reset, in, out, mem_addr, mem_cmd);
     wire [2:0] Z_out;
 
     // Instruction Register
-    vDFFE #(16) Instruct_Reg(clk, load_ir, read_data, decoder_in);
+    vDFFE #(16) Instruct_Reg(clk, load_ir, in, decoder_in);
 
     // Instruction Decoder
     always@(*) begin

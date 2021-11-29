@@ -68,9 +68,9 @@ module lab7_top(KEY, SW, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5);
 endmodule
 
 module RAM(clk, read_address, write_address, write, din, dout);
-    parameter data_width = 32;
-    parameter addr_width = 4;
-    parameter filename = "data.txt";
+    parameter data_width = 16;
+    parameter addr_width = 8;
+    parameter filename = "test.txt"; // remember to change it back to data.txt
     
     input clk;
     input [addr_width-1:0] read_address, write_address;
