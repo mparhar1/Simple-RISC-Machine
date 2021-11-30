@@ -65,7 +65,6 @@ module lab7_check_tb;
 
     // NOTE: if HALT is working, PC won't change again...
 
-
     if (~err) $display("INTERFACE OK");
 
     $stop;
