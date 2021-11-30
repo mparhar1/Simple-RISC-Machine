@@ -50,6 +50,7 @@ module lab7_check_tb;
 
     if (DUT.CPU.PC !== 9'h3) begin err = 1; $display("FAILED: PC should be 3."); end
     if (DUT.CPU.DP.REGFILE.R1 !== 16'hABCD) begin err = 1; $display("FAILED: R1 should be 0xABCD. Looks like your LDR isn't working."); end
+    else $display("PASSED: R1 contains 0xABCD");
 
     @(posedge DUT.CPU.PC or negedge DUT.CPU.PC);  // wait here until PC changes; autograder expects PC set to 4 *after* executing MOV R2, Y
 
@@ -60,8 +61,10 @@ module lab7_check_tb;
    
     if (DUT.CPU.PC !== 9'h5) begin err = 1; $display("FAILED: PC should be 5."); end
     if (DUT.MEM.mem[6] !== 16'hABCD) begin err = 1; $display("FAILED: mem[6] wrong; looks like your STR isn't working"); end
+    else $display("PASSED: mem[6] contains 0xABCD");
 
     // NOTE: if HALT is working, PC won't change again...
+
 
     if (~err) $display("INTERFACE OK");
 

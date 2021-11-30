@@ -15,6 +15,7 @@ module lab7_top(KEY, SW, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5);
     reg read_out, write_out, msel;
     wire [15:0] write_data, dout;
     reg [15:0] read_data;
+    wire N, V, Z;
 
     // Instantiate RAM Module
     RAM MEM(
@@ -62,7 +63,10 @@ module lab7_top(KEY, SW, LEDR, HEX0, HEX1, HEX2, HEX3, HEX4, HEX5);
         .in(read_data),
         .out(write_data),
         .mem_addr(mem_addr),
-        .mem_cmd(mem_cmd)
+        .mem_cmd(mem_cmd),
+        .N(N),
+        .V(V),
+        .Z(Z)
     );
 
 endmodule
